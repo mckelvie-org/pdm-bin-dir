@@ -6,8 +6,8 @@
 set -euo pipefail
 
 BRANCH=$(git branch --show-current)
-if [[ ! "$BRANCH" =~ ^rc/ ]]; then
-    echo "error: cut-prod must be run on an rc/* branch (current: ${BRANCH:-detached HEAD})" >&2
+if [[ "$BRANCH" != "rc" ]]; then
+    echo "error: cut-prod must be run on the rc branch (current: ${BRANCH:-detached HEAD})" >&2
     exit 1
 fi
 
@@ -42,7 +42,6 @@ new = f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
 
 print(f"version: {current} → {new}", file=sys.stderr)
 print(f"PROD_VERSION={new}")
-print(f"PROD_BRANCH=prod/{new}")
 PY
 )"
 
@@ -62,7 +61,6 @@ with open(path, "w") as f:
     f.write(updated)
 PY
 
-git -C "$TMP" checkout -b "$PROD_BRANCH"
 git -C "$TMP" add pyproject.toml
 git -C "$TMP" commit -m "chore: release $PROD_VERSION"
-git -C "$TMP" push origin "$PROD_BRANCH"
+git -C "$TMP" push --force origin "HEAD:prod"

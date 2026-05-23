@@ -47,7 +47,6 @@ new = f"{xyz}-rc.{n}"
 
 print(f"version: {current} → {new}", file=sys.stderr)
 print(f"RC_VERSION={new}")
-print(f"RC_BRANCH=rc/{xyz}")
 PY
 )"
 
@@ -67,7 +66,6 @@ with open(path, "w") as f:
     f.write(updated)
 PY
 
-git -C "$TMP" checkout -b "$RC_BRANCH"
 git -C "$TMP" add pyproject.toml
 git -C "$TMP" commit -m "chore: release $RC_VERSION"
-git -C "$TMP" push origin "$RC_BRANCH"
+git -C "$TMP" push --force origin "HEAD:rc"

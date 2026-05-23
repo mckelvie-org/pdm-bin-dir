@@ -1,6 +1,6 @@
 name: Publish
 
-# Triggered by any push to a prod/<x.y.z> branch (done by cut-prod in release.yml).
+# Triggered by any push to the prod branch (done by cut-prod).
 #
 # After a successful PyPI publish, tags the commit v<x.y.z>, then
 # automatically bumps main to the next patch dev version (X.Y.(Z+1)-dev.1).
@@ -9,7 +9,7 @@ name: Publish
 on:
   push:
     branches:
-      - "prod/**"
+      - "prod"
 
 permissions:
   id-token: write  # Required for OIDC trusted publishing.
@@ -35,22 +35,17 @@ jobs:
       - name: Install dependencies
         run: pdm install -G dev
 
-      - name: Validate branch and version
+      - name: Validate version
         run: |
-          BRANCH_VERSION="${GITHUB_REF_NAME#prod/}"
-          PROJECT_VERSION=$(python -c "
+          VERSION=$(python -c "
           import tomllib
           print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])
           ")
-          if [[ "$BRANCH_VERSION" != "$PROJECT_VERSION" ]]; then
-            echo "::error::Branch version ($BRANCH_VERSION) != pyproject version ($PROJECT_VERSION)"
+          if [[ "$VERSION" =~ [A-Za-z] ]]; then
+            echo "::error::PyPI publish requires a stable version, got: $VERSION"
             exit 1
           fi
-          if [[ "$BRANCH_VERSION" =~ [A-Za-z] ]]; then
-            echo "::error::PyPI publish requires a stable version, got: $BRANCH_VERSION"
-            exit 1
-          fi
-          echo "VERSION=$BRANCH_VERSION" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Check not already on PyPI
         run: |

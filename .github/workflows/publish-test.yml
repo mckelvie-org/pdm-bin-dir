@@ -1,15 +1,15 @@
 name: Publish TestPyPI
 run-name: "Publish TestPyPI · ${{ github.ref_name }}"
 
-# Triggered by any push to an rc/<x.y.z> branch (done by cut-rc in release.yml).
-# Validates that pyproject.toml carries an X.Y.Z-rc.N version matching the
-# branch, runs quality checks, publishes to TestPyPI via OIDC trusted
-# publishing, then tags the commit rc-v<x.y.z>-rc.<n>.
+# Triggered by any push to the rc branch (done by cut-rc).
+# Validates that pyproject.toml carries an X.Y.Z-rc.N version, runs quality
+# checks, publishes to TestPyPI via OIDC trusted publishing, then tags the
+# commit rc-v<x.y.z>-rc.<n>.
 
 on:
   push:
     branches:
-      - "rc/**"
+      - "rc"
 
 jobs:
   test:
@@ -64,20 +64,14 @@ jobs:
       - name: Install dependencies
         run: pdm install -G dev
 
-      - name: Validate branch and version
+      - name: Validate version
         run: |
-          BRANCH_XYZ="${GITHUB_REF_NAME#rc/}"
           VERSION=$(python -c "
           import tomllib
           print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])
           ")
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
             echo "::error::TestPyPI publish requires X.Y.Z-rc.N version, got: $VERSION"
-            exit 1
-          fi
-          VERSION_XYZ="${VERSION%-rc.*}"
-          if [[ "$VERSION_XYZ" != "$BRANCH_XYZ" ]]; then
-            echo "::error::Branch rc/${BRANCH_XYZ} version mismatch: pyproject has ${VERSION}"
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
