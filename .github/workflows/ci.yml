@@ -1,8 +1,9 @@
 name: CI
+run-name: "CI · ${{ github.ref_name }}"
 
 on:
   push:
-    branches: ["**"]
+    branches: ["**", "!rc/**", "!prod/**"]
   pull_request:
 
 jobs:
