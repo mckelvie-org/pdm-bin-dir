@@ -68,4 +68,4 @@ PY
 
 git -C "$TMP" add pyproject.toml
 git -C "$TMP" commit -m "chore: release $RC_VERSION"
-git -C "$TMP" push --force origin "HEAD:rc"
+git -C "$TMP" push --force origin "HEAD:refs/heads/rc"

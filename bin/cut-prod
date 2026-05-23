@@ -63,4 +63,4 @@ PY
 
 git -C "$TMP" add pyproject.toml
 git -C "$TMP" commit -m "chore: release $PROD_VERSION"
-git -C "$TMP" push --force origin "HEAD:prod"
+git -C "$TMP" push --force origin "HEAD:refs/heads/prod"
