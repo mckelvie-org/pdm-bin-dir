@@ -4,7 +4,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "pdm-bin-dir"
-version = "1.0.5-dev.1"
+version = "1.0.6-dev.1"
 description = "PDM plugin that allows additional directories listed in pyproject.toml to be added to environment PATH"
 readme = "README.md"
 license = { file = "LICENSE" }
