@@ -4,7 +4,7 @@ run-name: "Publish TestPyPI · ${{ github.ref_name }}"
 # Triggered by any push to the rc branch (done by cut-rc).
 # Validates that pyproject.toml carries an X.Y.Z-rc.N version, runs quality
 # checks, publishes to TestPyPI via OIDC trusted publishing, then tags the
-# commit rc-v<x.y.z>-rc.<n>.
+# commit v<x.y.z>-rc.<n>.
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
     environment: testpypi
     permissions:
       id-token: write  # Required for OIDC trusted publishing.
-      contents: write  # Required to push the rc-v<x.y.z>-rc.<n> tag after publish.
+      contents: write  # Required to push the v<x.y.z>-rc.<n> tag after publish.
 
     steps:
       - name: Checkout
@@ -97,5 +97,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "rc-v${VERSION}"
-          git push origin "rc-v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"

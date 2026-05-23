@@ -40,7 +40,7 @@ if not m:
 x, y, z = int(m.group(1)), int(m.group(2)), int(m.group(3))
 xyz = f"{x}.{y}.{z}"
 
-tags = subprocess.check_output(["git", "tag", "--list", f"rc-v{xyz}-rc.*"]).decode().split()
+tags = subprocess.check_output(["git", "tag", "--list", f"v{xyz}-rc.*"]).decode().split()
 ns = [int(re.search(r"rc\.(\d+)$", t).group(1)) for t in tags if re.search(r"rc\.(\d+)$", t)]
 n = max(ns) + 1 if ns else 1
 new = f"{xyz}-rc.{n}"
