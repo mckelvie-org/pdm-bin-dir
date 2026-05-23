@@ -22,7 +22,8 @@ on:
         type: string
 
 jobs:
-  smoke:
+  smoke-pip:
+    name: "Smoke · pip install"
     runs-on: ubuntu-latest
 
     steps:
@@ -39,7 +40,8 @@ jobs:
         env:
           REF: ${{ github.event.inputs.git_ref }}
         run: |
-          python -m pip install --no-cache-dir "pdm-bin-dir @ git+https://github.com/${{ github.repository }}.git@$REF"
+          python -m pip install --no-cache-dir \
+            "pdm-bin-dir @ git+https://github.com/${{ github.repository }}.git@$REF"
 
       - name: Install from TestPyPI
         if: ${{ github.event.inputs.source == 'testpypi' }}
@@ -50,8 +52,10 @@ jobs:
             echo "version input is required for testpypi source"
             exit 1
           fi
-          pdm self add "pdm-bin-dir==$VERSION" \
-            --pip-args "--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --no-cache-dir"
+          python -m pip install --no-cache-dir \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "pdm-bin-dir==$VERSION"
 
       - name: Smoke test import and exports
         run: |
@@ -78,5 +82,63 @@ jobs:
           assert callable(get_bin_dirs)
 
           print(f"pdm-bin-dir version: {__version__}")
-          print("Smoke test passed!")
+          print("pip install smoke test passed!")
+          PY
+
+  smoke-pdm:
+    name: "Smoke · pdm self add"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PDM
+        run: python -m pip install --no-cache-dir pdm
+
+      - name: Install from GitHub via pdm self add
+        if: ${{ github.event.inputs.source == 'github' }}
+        env:
+          REF: ${{ github.event.inputs.git_ref }}
+        run: |
+          pdm self add \
+            --pip-args "--no-cache-dir" \
+            "pdm-bin-dir @ git+https://github.com/${{ github.repository }}.git@$REF"
+
+      - name: Install from TestPyPI via pdm self add
+        if: ${{ github.event.inputs.source == 'testpypi' }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [[ -z "$VERSION" ]]; then
+            echo "version input is required for testpypi source"
+            exit 1
+          fi
+          pdm self add "pdm-bin-dir==$VERSION" \
+            --pip-args "--index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --no-cache-dir"
+
+      - name: Smoke test PDM plugin functionality
+        run: |
+          PROJDIR=$(mktemp -d)
+          cat > "$PROJDIR/pyproject.toml" <<'EOF'
+          [project]
+          name = "smoke"
+          version = "0.1.0"
+          requires-python = ">=3.12"
+
+          [tool.pdm.plugin.bin-dir]
+          dirs = ["mybin"]
+          EOF
+          mkdir "$PROJDIR/mybin"
+          cd "$PROJDIR"
+          pdm install
+          pdm run python - <<'PY'
+          import os, pathlib
+          path = os.environ['PATH']
+          mybin = str(pathlib.Path('mybin').resolve())
+          assert mybin in path.split(':'), f'{mybin!r} not found in PATH:\n{path}'
+          print(f"mybin in PATH: {mybin}")
+          print("pdm self add smoke test passed!")
           PY
