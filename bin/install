@@ -56,8 +56,5 @@ pdm install -G dev
 
 # ── PDM plugins ───────────────────────────────────────────────────────────────
 
-echo "Installing PDM plugins..."
-pdm self add -e ./scripts/pdm/plugins/pdm_bin_dir
-
 echo ""
 echo "Done.  Run 'pdm run test' to verify the setup."

@@ -1,11 +1,10 @@
 # CHANGELOG
 
-<!-- version list -->
+## 1.0.0 (unreleased)
 
-## v0.0.1-dev.1 (2026-05-20)
+Initial release.
 
-- Initial Release
-
-## v1.0.0-rc.1 (2026-05-20)
-
-- Initial Release
+- PDM plugin that prepends configured project directories to `PATH` before each `pdm run` invocation.
+- Default directory: `bin` (relative to project root).
+- Configurable via `[tool.pdm.plugin.bin-dir] dirs = [...]` in `pyproject.toml`.
+- Adds `pdm bin-dir [show|set|add]` command for inspecting and updating configuration.

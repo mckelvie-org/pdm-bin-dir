@@ -3,20 +3,20 @@ requires = ["pdm-backend>=2.4.0"]
 build-backend = "pdm.backend"
 
 [project]
-name = "gaussian-rational"
-version = "1.0.1-dev.1"
-description = "Exact complex-like scalars with rational real and imaginary parts."
+name = "pdm-bin-dir"
+version = "1.0.0-dev.1"
+description = "PDM plugin that allows additional directories listed in pyproject.toml to be added to environment PATH"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [
   { name = "Sam McKelvie", email = "dev@emckelvie.org" },
 ]
-keywords = ["math", "complex", "fraction", "gaussian-rational", "numeric", "exact", "imaginary", "rational", "scalar", "gaussian", "arithmetic"]
+keywords = ["pdm", "plugin", "path", "environment", "bin", "virtualenv", "script", "activate"]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Environment :: Console",
   "Intended Audience :: Developers",
-  "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -24,34 +24,23 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Build Tools",
   "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Utilities",
   "Typing :: Typed",
 ]
 dependencies = [
   "typing-extensions>=4.8; python_version < '3.12'",
 ]
 
-[tool.pdm]
-distribution = true
-plugins = [
-    "-e file:///${PROJECT_ROOT}/scripts/pdm/plugins/pdm_bin_dir",
-]
-
-[tool.pdm.build]
-includes = ["gaussian_rational"]
-
 [dependency-groups]
 dev = [
-  "mypy>=1.11.0",
-  "pytest>=8.3.0",
-  "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "pytest>=8.3.0",
+    "ruff>=0.6.0",
+    "pdm>=2.27.0",
 ]
-
-[tool.pdm.scripts]
-test = "pytest"
-lint = "ruff check ."
-typecheck = "mypy gaussian_rational"
 
 [tool.pytest.ini_options]
 addopts = "-ra"
@@ -68,5 +57,18 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-packages = ["gaussian_rational"]
+packages = ["pdm_bin_dir"]
 
+[project.entry-points.pdm]
+bin-path = "pdm_bin_dir:plugin"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.build]
+includes = ["pdm_bin_dir"]
+
+[tool.pdm.scripts]
+test = "pytest"
+lint = "ruff check ."
+typecheck = "mypy pdm_bin_dir"

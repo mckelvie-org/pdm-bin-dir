@@ -55,7 +55,7 @@ jobs:
       - name: Check not already on PyPI
         run: |
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://pypi.org/pypi/gaussian-rational/${VERSION}/json")
+            "https://pypi.org/pypi/pdm-bin-dir/${VERSION}/json")
           if [[ "$HTTP" == "200" ]]; then
             echo "::error::Version ${VERSION} is already on PyPI"
             exit 1

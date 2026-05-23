@@ -31,13 +31,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install PDM
+        run: python -m pip install pdm
+
       - name: Install from GitHub
         if: ${{ github.event.inputs.source == 'github' }}
         env:
           REF: ${{ github.event.inputs.git_ref }}
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install "gaussian-rational @ git+https://github.com/${{ github.repository }}.git@$REF"
+          python -m pip install "pdm-bin-dir @ git+https://github.com/${{ github.repository }}.git@$REF"
 
       - name: Install from TestPyPI
         if: ${{ github.event.inputs.source == 'testpypi' }}
@@ -48,23 +50,35 @@ jobs:
             echo "version input is required for testpypi source"
             exit 1
           fi
-          python -m pip install --upgrade pip
           python -m pip install \
             --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
-            "gaussian-rational==$VERSION"
+            "pdm-bin-dir==$VERSION"
 
-      - name: Smoke test import and arithmetic
+      - name: Smoke test import and exports
         run: |
           python - <<'PY'
-          from fractions import Fraction
-          from gaussian_rational import GaussianRational, __version__
+          from pdm_bin_dir import (
+              BinDirCommand,
+              CONFIG_DIRS_KEY,
+              CONFIG_DIRS_SUBKEY,
+              CONFIG_GROUP,
+              DEFAULT_BIN_DIRS,
+              get_bin_dirs,
+              get_bin_reldirs,
+              plugin,
+              __version__,
+          )
 
-          z = GaussianRational(Fraction(1, 2), Fraction(1, 3))
-          w = GaussianRational(2, -1)
-          result = z * w
+          assert isinstance(__version__, str) and __version__ != "", f"bad __version__: {__version__!r}"
+          assert CONFIG_GROUP == "tool.pdm.plugin.bin-dir"
+          assert CONFIG_DIRS_SUBKEY == "dirs"
+          assert CONFIG_DIRS_KEY == "tool.pdm.plugin.bin-dir.dirs"
+          assert DEFAULT_BIN_DIRS == ["bin"]
+          assert callable(plugin)
+          assert callable(get_bin_reldirs)
+          assert callable(get_bin_dirs)
 
-          print("gaussian-rational version:", __version__)
-          print("result:", result)
-          assert result == GaussianRational(Fraction(4, 3), Fraction(1, 6))
+          print(f"pdm-bin-dir version: {__version__}")
+          print("Smoke test passed!")
           PY
