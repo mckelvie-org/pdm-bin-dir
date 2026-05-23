@@ -17,10 +17,16 @@ fi
 
 git fetch origin rc
 
-eval "$(git show origin/rc:pyproject.toml | pdm run python - <<'PY'
+TMP=$(mktemp -d)
+trap 'git worktree remove --force "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
+
+git worktree add --detach "$TMP" origin/rc
+
+eval "$(pdm run python - "$TMP/pyproject.toml" <<'PY'
 import re, sys
 
-text = sys.stdin.read()
+with open(sys.argv[1]) as f:
+    text = f.read()
 vm = re.search(r'^version\s*=\s*"([^"]*)"', text, re.MULTILINE)
 if not vm:
     sys.exit("version= line not found in pyproject.toml")
@@ -36,11 +42,6 @@ print(f"version: {current} → {new}", file=sys.stderr)
 print(f"PROD_VERSION={new}")
 PY
 )"
-
-TMP=$(mktemp -d)
-trap 'git worktree remove --force "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
-
-git worktree add --detach "$TMP" origin/rc
 
 pdm run python - "$PROD_VERSION" "$TMP/pyproject.toml" <<'PY'
 import re, sys
