@@ -12,6 +12,12 @@ if [[ ! "$BRANCH" =~ ^rc/ ]]; then
 fi
 
 git fetch origin "$BRANCH"
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "error: working tree has uncommitted changes — commit or stash first" >&2
+    exit 1
+fi
+
 AHEAD=$(git rev-list "origin/${BRANCH}..HEAD" --count)
 if [[ "$AHEAD" -gt 0 ]]; then
     echo "error: local ${BRANCH} is $AHEAD commit(s) ahead of origin — push first" >&2
