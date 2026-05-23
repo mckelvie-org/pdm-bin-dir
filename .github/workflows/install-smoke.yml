@@ -74,7 +74,7 @@ jobs:
           assert CONFIG_GROUP == "tool.pdm.plugin.bin-dir"
           assert CONFIG_DIRS_SUBKEY == "dirs"
           assert CONFIG_DIRS_KEY == "tool.pdm.plugin.bin-dir.dirs"
-          assert DEFAULT_BIN_DIRS == ["bin"]
+          assert DEFAULT_BIN_DIRS == []
           assert callable(plugin)
           assert callable(get_bin_reldirs)
           assert callable(get_bin_dirs)
