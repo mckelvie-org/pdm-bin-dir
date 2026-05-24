@@ -77,6 +77,20 @@ with open(path, "w") as f:
     f.write(updated)
 PY
 
-git -C "$TMP" add pyproject.toml
+# Finalize the (unreleased) CHANGELOG entry for this version.
+pdm run python - "$PROD_VERSION" "$TMP/CHANGELOG.md" <<'PY'
+import datetime, re, sys
+version, path = sys.argv[1], sys.argv[2]
+with open(path) as f:
+    text = f.read()
+date = datetime.date.today().isoformat()
+updated = text.replace(f"## {version} (unreleased)", f"## {version} ({date})")
+if updated == text:
+    print(f"warning: no '## {version} (unreleased)' entry found in CHANGELOG.md", file=sys.stderr)
+with open(path, "w") as f:
+    f.write(updated)
+PY
+
+git -C "$TMP" add pyproject.toml CHANGELOG.md
 git -C "$TMP" commit -m "chore: release $PROD_VERSION"
 git -C "$TMP" push --force origin "HEAD:refs/heads/prod"

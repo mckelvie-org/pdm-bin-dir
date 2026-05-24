@@ -66,6 +66,21 @@ with open(path, "w") as f:
     f.write(updated)
 PY
 
-git -C "$TMP" add pyproject.toml
+# Prepend an (unreleased) CHANGELOG entry if one doesn't already exist.
+pdm run python - "$RC_VERSION" "$TMP/CHANGELOG.md" <<'PY'
+import re, sys
+xyz = re.fullmatch(r"(\d+\.\d+\.\d+)-rc\.\d+", sys.argv[1]).group(1)
+path = sys.argv[2]
+with open(path) as f:
+    text = f.read()
+header = f"## {xyz} (unreleased)"
+if header not in text:
+    entry = f"{header}\n\n- _Add release notes here._\n\n"
+    text = re.sub(r"^(# CHANGELOG\n+)", rf"\1{entry}", text)
+    with open(path, "w") as f:
+        f.write(text)
+PY
+
+git -C "$TMP" add pyproject.toml CHANGELOG.md
 git -C "$TMP" commit -m "chore: release $RC_VERSION"
 git -C "$TMP" push --force origin "HEAD:refs/heads/rc"
