@@ -55,18 +55,30 @@ trap 'git worktree remove --force "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
 git worktree add --detach "$TMP" HEAD
 
-pdm run python - "$RC_VERSION" "$TMP/pyproject.toml" <<'PY'
+pdm run python - "$RC_VERSION" "$TMP/pyproject.toml" "$TMP/README.md" <<'PY'
 import re, sys
-new, path = sys.argv[1], sys.argv[2]
-with open(path) as f:
+new, toml_path, readme_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(toml_path) as f:
     text = f.read()
 updated = re.sub(r'^(version\s*=\s*")[^"]*(")', rf'\g<1>{new}\2', text, flags=re.MULTILINE)
 assert updated != text, "version= line not found in pyproject.toml"
 # Set Source URL to the rc tag that the publish workflow will create.
 source_url = f"https://github.com/mckelvie-org/pdm-bin-dir/tree/v{new}"
 updated = re.sub(r'^(Source\s*=\s*")[^"]*(")', rf'\g<1>{source_url}\2', updated, flags=re.MULTILINE)
-with open(path, "w") as f:
+with open(toml_path, "w") as f:
     f.write(updated)
+
+# Normalize rc version for PyPI/shields (1.0.6-rc.2 → 1.0.6rc2).
+pypi_ver = re.sub(r"-rc\.", "rc", new)
+pypi_url = f"https://test.pypi.org/project/pdm-bin-dir/{pypi_ver}/"
+badge_url = f"https://img.shields.io/badge/pypi-v{pypi_ver}-blue.svg"
+with open(readme_path) as f:
+    readme = f.read()
+readme = re.sub(r'\[!\[PyPI version\]\([^)]*\)\]\([^)]*\)',
+                f'[![PyPI version]({badge_url})]({pypi_url})', readme)
+with open(readme_path, "w") as f:
+    f.write(readme)
 PY
 
 # Prepend an (unreleased) CHANGELOG entry if one doesn't already exist.
@@ -84,6 +96,6 @@ if header not in text:
         f.write(text)
 PY
 
-git -C "$TMP" add pyproject.toml CHANGELOG.md
+git -C "$TMP" add pyproject.toml CHANGELOG.md README.md
 git -C "$TMP" commit -m "chore: release $RC_VERSION"
 git -C "$TMP" push --force origin "HEAD:refs/heads/rc"
