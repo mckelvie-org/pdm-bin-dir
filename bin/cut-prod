@@ -82,10 +82,16 @@ with open(toml_path, "w") as f:
 
 pypi_url = f"https://pypi.org/project/pdm-bin-dir/{new}/"
 badge_url = f"https://img.shields.io/badge/pypi-v{new}-blue.svg"
+python_badge = "https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue.svg"
+ci_badge = "https://img.shields.io/badge/CI-passing-brightgreen.svg"
 with open(readme_path) as f:
     readme = f.read()
 readme = re.sub(r'\[!\[PyPI version\]\([^)]*\)\]\([^)]*\)',
                 f'[![PyPI version]({badge_url})]({pypi_url})', readme)
+readme = re.sub(r'\[!\[Python versions\]\([^)]*\)\]\([^)]*\)',
+                f'[![Python versions]({python_badge})](https://pypi.org/project/pdm-bin-dir/)', readme)
+readme = re.sub(r'\[!\[CI\]\([^)]*\)\]\([^)]*\)',
+                f'[![CI]({ci_badge})](https://github.com/mckelvie-org/pdm-bin-dir/actions/workflows/ci.yml)', readme)
 with open(readme_path, "w") as f:
     f.write(readme)
 PY
