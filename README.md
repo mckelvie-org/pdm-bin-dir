@@ -1,8 +1,8 @@
 # pdm-bin-dir
 
-[![CI](https://github.com/mckelvie-org/pdm-bin-dir/actions/workflows/ci.yml/badge.svg)](https://github.com/mckelvie-org/pdm-bin-dir/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/pdm-bin-dir.svg)](https://pypi.org/project/pdm-bin-dir/)
-[![Python versions](https://img.shields.io/pypi/pyversions/pdm-bin-dir.svg)](https://pypi.org/project/pdm-bin-dir/)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen.svg)](https://github.com/mckelvie-org/pdm-bin-dir/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/badge/pypi-v1.0.7rc1-blue.svg)](https://test.pypi.org/project/pdm-bin-dir/1.0.7rc1/)
+[![Python versions](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue.svg)](https://pypi.org/project/pdm-bin-dir/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 `pdm-bin-dir` is a [PDM](https://pdm-project.org/) plugin that automatically prepends additional project directories to `PATH` when running commands via PDM. This lets you place helper scripts alongside your project and run them as plain commands — no prefix or activation needed.
