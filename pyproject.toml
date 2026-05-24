@@ -12,11 +12,6 @@ requires-python = ">=3.10"
 authors = [
   { name = "Sam McKelvie", email = "dev@emckelvie.org" },
 ]
-
-[project.urls]
-Homepage = "https://github.com/mckelvie-org/pdm-bin-dir"
-"Bug Tracker" = "https://github.com/mckelvie-org/pdm-bin-dir/issues"
-Changelog = "https://github.com/mckelvie-org/pdm-bin-dir/releases"
 keywords = ["pdm", "plugin", "path", "environment", "bin", "virtualenv", "script", "activate"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -39,6 +34,11 @@ dependencies = [
   "pdm>=2.0",
   "typing-extensions>=4.8; python_version < '3.12'",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mckelvie-org/pdm-bin-dir"
+"Bug Tracker" = "https://github.com/mckelvie-org/pdm-bin-dir/issues"
+Changelog = "https://github.com/mckelvie-org/pdm-bin-dir/releases"
 
 [dependency-groups]
 dev = [
