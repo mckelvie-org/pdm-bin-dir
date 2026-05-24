@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.0.6 (unreleased)
+## 1.0.6 (2026-05-23)
 
 - Added GitHub repository, issue tracker, and changelog links to PyPI project page.
 - Trimmed PyPI package description to user-facing content; moved development and release workflow docs to `CONTRIBUTING.md`.
