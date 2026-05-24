@@ -93,3 +93,33 @@ gh workflow run install-smoke.yml --field source=testpypi --field version=1.0.5r
 
 Two jobs run in parallel: `smoke-pip` (pip install + import/export assertions)
 and `smoke-pdm` (`pdm self add` + functional PATH test in a real PDM project).
+
+## Debugging
+
+The plugin prints diagnostic messages to stderr when debug mode is enabled.
+This is useful for tracing which directories are being added to `PATH`.
+
+### Enable via environment variable
+
+```bash
+PDM_BIN_DIR_DEBUG=1 pdm run <command>
+```
+
+Accepted truthy values: `1`, `true`, `yes`, `on` (case-insensitive).  
+Set to `0` / `false` / `no` / `off` to explicitly disable (overrides pyproject.toml).
+
+### Enable via pyproject.toml
+
+```toml
+[tool.pdm.plugin.bin-dir]
+dirs = ["bin"]
+debug = true
+```
+
+The environment variable takes precedence over `pyproject.toml` when set to
+any non-empty value. If the env var is absent or empty, the pyproject setting
+is used as the fallback.
+
+The constant `DEBUG_ENV_VAR` (`"PDM_BIN_DIR_DEBUG"`) and `DEBUG_KEY`
+(`"tool.pdm.plugin.bin-dir.debug"`) are exported from the package for
+downstream use.

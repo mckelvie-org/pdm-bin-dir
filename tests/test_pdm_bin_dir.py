@@ -12,13 +12,18 @@ import pytest
 import pdm_bin_dir
 from pdm_bin_dir import (
     CONFIG_DIRS_KEY,
-    CONFIG_DIRS_SUBKEY,
     CONFIG_GROUP,
+    DEBUG_ENV_VAR,
+    DEBUG_KEY,
     DEFAULT_BIN_DIRS,
     BinDirCommand,
     _add_bin_dirs_to_path,
     _get_abspath,
+    _is_debug_enabled,
+    _is_debug_env_var_enabled,
+    _is_debug_pyproject_enabled,
     _normalize_relpath,
+    dprint,
     get_bin_dirs,
     get_bin_reldirs,
     plugin,
@@ -46,8 +51,9 @@ def test_version() -> None:
 
 def test_constants() -> None:
     assert CONFIG_GROUP == "tool.pdm.plugin.bin-dir"
-    assert CONFIG_DIRS_SUBKEY == "dirs"
     assert CONFIG_DIRS_KEY == "tool.pdm.plugin.bin-dir.dirs"
+    assert DEBUG_ENV_VAR == "PDM_BIN_DIR_DEBUG"
+    assert DEBUG_KEY == "tool.pdm.plugin.bin-dir.debug"
     assert DEFAULT_BIN_DIRS == []
 
 
@@ -242,3 +248,140 @@ def test_add_bin_dirs_to_path_empty_dirs() -> None:
             assert os.environ.get("PATH", "") == old_path
         finally:
             os.environ["PATH"] = old_path
+
+
+# ---------------------------------------------------------------------------
+# Debug: _is_debug_env_var_enabled
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _clear_debug_caches() -> None:
+    _is_debug_env_var_enabled.cache_clear()
+    _is_debug_pyproject_enabled.cache_clear()
+
+
+@pytest.mark.parametrize("val", ["1", "true", "yes", "on", "True", "YES", "ON", "TRUE"])
+def test_debug_env_var_truthy(monkeypatch: pytest.MonkeyPatch, val: str) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, val)
+    _is_debug_env_var_enabled.cache_clear()
+    assert _is_debug_env_var_enabled() is True
+
+
+@pytest.mark.parametrize("val", ["0", "false", "no", "off", "False", "NO"])
+def test_debug_env_var_falsy(monkeypatch: pytest.MonkeyPatch, val: str) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, val)
+    _is_debug_env_var_enabled.cache_clear()
+    assert _is_debug_env_var_enabled() is False
+
+
+def test_debug_env_var_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(DEBUG_ENV_VAR, raising=False)
+    _is_debug_env_var_enabled.cache_clear()
+    assert _is_debug_env_var_enabled() is None
+
+
+def test_debug_env_var_empty_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, "  ")
+    _is_debug_env_var_enabled.cache_clear()
+    assert _is_debug_env_var_enabled() is None
+
+
+# ---------------------------------------------------------------------------
+# Debug: _is_debug_pyproject_enabled
+# ---------------------------------------------------------------------------
+
+def test_debug_pyproject_enabled() -> None:
+    config = {"tool": {"pdm": {"plugin": {"bin-dir": {"debug": True}}}}}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, config)
+        assert _is_debug_pyproject_enabled(project) is True
+
+
+def test_debug_pyproject_disabled() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, {})
+        assert _is_debug_pyproject_enabled(project) is False
+
+
+def test_debug_pyproject_none_project() -> None:
+    assert _is_debug_pyproject_enabled(None) is False
+
+
+# ---------------------------------------------------------------------------
+# Debug: _is_debug_enabled (precedence)
+# ---------------------------------------------------------------------------
+
+def test_debug_enabled_env_true_overrides_pyproject_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, "1")
+    _is_debug_env_var_enabled.cache_clear()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, {})
+        assert _is_debug_enabled(project) is True
+
+
+def test_debug_enabled_env_false_overrides_pyproject_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, "0")
+    _is_debug_env_var_enabled.cache_clear()
+    config = {"tool": {"pdm": {"plugin": {"bin-dir": {"debug": True}}}}}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, config)
+        assert _is_debug_enabled(project) is False
+
+
+def test_debug_enabled_falls_back_to_pyproject(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(DEBUG_ENV_VAR, raising=False)
+    _is_debug_env_var_enabled.cache_clear()
+    config = {"tool": {"pdm": {"plugin": {"bin-dir": {"debug": True}}}}}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, config)
+        assert _is_debug_enabled(project) is True
+
+
+def test_debug_enabled_both_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(DEBUG_ENV_VAR, raising=False)
+    _is_debug_env_var_enabled.cache_clear()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, {})
+        assert _is_debug_enabled(project) is False
+
+
+# ---------------------------------------------------------------------------
+# Debug: dprint
+# ---------------------------------------------------------------------------
+
+def test_dprint_writes_to_stderr_when_enabled(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv(DEBUG_ENV_VAR, raising=False)
+    _is_debug_env_var_enabled.cache_clear()
+    config = {"tool": {"pdm": {"plugin": {"bin-dir": {"debug": True}}}}}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, config)
+        dprint(project, "hello", "world")
+    captured = capsys.readouterr()
+    assert "hello" in captured.err
+    assert "world" in captured.err
+
+
+def test_dprint_silent_when_disabled(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv(DEBUG_ENV_VAR, raising=False)
+    _is_debug_env_var_enabled.cache_clear()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, {})
+        dprint(project, "should not appear")
+    captured = capsys.readouterr()
+    assert "should not appear" not in captured.err
+
+
+def test_dprint_via_env_var(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv(DEBUG_ENV_VAR, "1")
+    _is_debug_env_var_enabled.cache_clear()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = _mock_project(tmpdir, {})
+        dprint(project, "env-triggered message")
+    captured = capsys.readouterr()
+    assert "env-triggered message" in captured.err

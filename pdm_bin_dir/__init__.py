@@ -27,6 +27,7 @@ import sys
 from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from copy import deepcopy
+from functools import cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any, ClassVar
@@ -49,14 +50,17 @@ __all__ = [
     "get_bin_reldirs",
     "get_bin_dirs",
     "CONFIG_GROUP",
-    "CONFIG_DIRS_SUBKEY",
     "CONFIG_DIRS_KEY",
     "DEFAULT_BIN_DIRS",
+    "DEBUG_ENV_VAR",
+    "DEBUG_KEY",
 ]
 
+
+DEBUG_ENV_VAR = "PDM_BIN_DIR_DEBUG"
 CONFIG_GROUP = "tool.pdm.plugin.bin-dir"
-CONFIG_DIRS_SUBKEY = "dirs"
-CONFIG_DIRS_KEY = f"{CONFIG_GROUP}.{CONFIG_DIRS_SUBKEY}"
+CONFIG_DIRS_KEY = f"{CONFIG_GROUP}.dirs"
+DEBUG_KEY = f"{CONFIG_GROUP}.debug"
 
 DEFAULT_BIN_DIRS: list[str] = []
 """The default list of bin directories to add to PATH if not configured in pyproject.toml.
@@ -64,7 +68,6 @@ DEFAULT_BIN_DIRS: list[str] = []
 Defaults to empty so the plugin has no effect on projects that have not explicitly opted in
 via ``[tool.pdm.plugin.bin-dir]`` in their ``pyproject.toml``.
 """
-
 
 def _read_pyproject_key(project: Project, key: str, default: Any=None) -> object:
     """Helper function to read a key from the pyproject.toml configuration.
@@ -132,7 +135,40 @@ def _delete_pyproject_key(project: Project, key: str, flush: bool=True, show_mes
     del parent[parts[-1]]
     if flush:
         project.pyproject.write(show_message=show_message)
-        
+
+@cache
+def _is_debug_env_var_enabled() -> bool | None:
+    """Whether the debug environment variable is set to a truthy value.
+       If the environment variable is not set or is set to an empty string, returns None.
+       Otherwise returns True if the value is a common truthy string, or False if it is set to a non-truthy value.
+"""
+    env_val = os.environ.get(DEBUG_ENV_VAR, "").strip()
+    if env_val == "":
+        return None
+    return env_val.lower() in ("1", "true", "yes", "on")
+
+@cache
+def _is_debug_pyproject_enabled(project: Project | None) -> bool:
+    """Whether the debug key in pyproject.toml is set to a truthy value. If Project is None, returns False."""
+    if project is None:
+        return False
+    return bool(_read_pyproject_key(project, DEBUG_KEY, False))
+
+def _is_debug_enabled(project: Project | None) -> bool:
+    """Whether debug messages about the plugin's actions should be printed to stderr.
+       Checks the environment variable first, then falls back to the pyproject.toml configuration.
+       If project is None, only the environment variable is considered.
+    """
+    result = _is_debug_env_var_enabled()
+    if result is None:
+        result = _is_debug_pyproject_enabled(project)
+    return result
+
+def dprint(project: Project | None, *args: object) -> None:
+    """Print debug messages about the plugin's actions to stderr if debug is enabled."""
+    if _is_debug_enabled(project):
+        print("[pdm-bin-dir] ", *args, file=sys.stderr)
+
 def get_bin_reldirs(project: Project) -> list[str]:
     """Returns the bin directories exactly as configured in pyproject.toml, or the default if not configured.
        The paths are returned as-is without normalization, and may be absolute or relative."""
@@ -250,6 +286,7 @@ class BinDirCommand(BaseCommand):
         """
         # TODO: Add command options to control the output format, and whether to display absolute or relative paths.
         current_dirs = get_bin_reldirs(project)
+        dprint(project, f"bin-dir show: Current bin dirs: {current_dirs}")
         print(json.dumps(current_dirs))
         return 0
    
@@ -266,6 +303,7 @@ class BinDirCommand(BaseCommand):
             int: The exit code of the command. 0 indicates success, non-zero indicates failure.
         """
         relpaths: list[str] = options.relpaths
+        dprint(project, f"bin-dir set: Setting new bin dirs: {relpaths}")
         if not isinstance(relpaths, list) or not all(isinstance(item, str) for item in relpaths):
             print(f"Invalid directory list provided to `pdm {self.cmd_name} set`: {relpaths}", file=sys.stderr)
             return 1
@@ -290,6 +328,7 @@ class BinDirCommand(BaseCommand):
             int: The exit code of the command. 0 indicates success, non-zero indicates failure.
         """
         new_relpaths: list[str] = options.relpaths
+        dprint(project, f"bin-dir add: Adding new bin dirs: {new_relpaths}")
         if not isinstance(new_relpaths, list) or not all(isinstance(item, str) for item in new_relpaths):
             print(f"Invalid directory list provided to `pdm {self.cmd_name} add`: {new_relpaths}", file=sys.stderr)
             return 1
@@ -337,16 +376,21 @@ def _add_bin_dirs_to_path(project: Project, **_: object) -> None:
     
     Paths that are effectively already in PATH will not be added again to avoid duplicates. The directories appear in the order they are configured.
     """
+    dprint(project, "Handling pre_invoke signal to add bin dirs to PATH")
     bin_dirs = get_bin_dirs(project)
     if len(bin_dirs) == 0:
         return
     path = os.environ.get("PATH", "")
     old_dir_list = [] if len(path) == 0 else path.split(os.pathsep)
+    dprint(project, f"Current PATH: {old_dir_list}")
     existing_dirs = set(old_dir_list)
     new_dirs = [bin_dir for bin_dir in bin_dirs if bin_dir not in existing_dirs]
+    dprint(project, f"Bin dirs to add to PATH: {new_dirs}")
     if len(new_dirs) == 0:
         return
-    new_path = os.pathsep.join(new_dirs + old_dir_list)
+    new_dir_list = new_dirs + old_dir_list
+    dprint(project, f"New PATH: {new_dir_list}")
+    new_path = os.pathsep.join(new_dir_list)
     os.environ["PATH"] = new_path
 
 def plugin(core: Core) -> None:
@@ -355,5 +399,7 @@ def plugin(core: Core) -> None:
     Args:
         core (Core): The PDM core instance.
     """
+    # Cannot print debug messages here because the project is not yet loaded.
+    dprint(None, "Initializing pdm-bin-dir plugin")
     pre_invoke.connect(_add_bin_dirs_to_path)
     core.register_command(BinDirCommand, BinDirCommand.cmd_name)

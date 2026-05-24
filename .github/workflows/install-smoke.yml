@@ -74,8 +74,9 @@ jobs:
           from pdm_bin_dir import (
               BinDirCommand,
               CONFIG_DIRS_KEY,
-              CONFIG_DIRS_SUBKEY,
               CONFIG_GROUP,
+              DEBUG_ENV_VAR,
+              DEBUG_KEY,
               DEFAULT_BIN_DIRS,
               get_bin_dirs,
               get_bin_reldirs,
@@ -85,8 +86,9 @@ jobs:
 
           assert isinstance(__version__, str) and __version__ != "", f"bad __version__: {__version__!r}"
           assert CONFIG_GROUP == "tool.pdm.plugin.bin-dir"
-          assert CONFIG_DIRS_SUBKEY == "dirs"
           assert CONFIG_DIRS_KEY == "tool.pdm.plugin.bin-dir.dirs"
+          assert DEBUG_ENV_VAR == "PDM_BIN_DIR_DEBUG"
+          assert DEBUG_KEY == "tool.pdm.plugin.bin-dir.debug"
           assert DEFAULT_BIN_DIRS == []
           assert callable(plugin)
           assert callable(get_bin_reldirs)
