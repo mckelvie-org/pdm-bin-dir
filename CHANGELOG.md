@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.7 (unreleased)
+
+- _Add release notes here._
+
 ## 1.0.6 (unreleased)
 
 - Added GitHub repository, issue tracker, and changelog links to PyPI project page.
