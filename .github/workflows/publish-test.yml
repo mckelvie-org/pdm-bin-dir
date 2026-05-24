@@ -78,8 +78,9 @@ jobs:
 
       - name: Check not already on TestPyPI
         run: |
+          PACKAGE=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['name'])")
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://test.pypi.org/pypi/pdm-bin-dir/${VERSION}/json")
+            "https://test.pypi.org/pypi/${PACKAGE}/${VERSION}/json")
           if [[ "$HTTP" == "200" ]]; then
             echo "::error::Version ${VERSION} is already on TestPyPI"
             exit 1

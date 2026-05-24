@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cut an rc/<x.y.z> branch from the current HEAD of main.
+# Cut an rc branch from the current HEAD of main.
 # Computes the next rc counter from existing tags, sets pyproject.toml to
 # X.Y.Z-rc.N, commits, and pushes — triggering publish-test.yml.
 # Uses a git worktree so the dev's working directory is never modified.
@@ -28,6 +28,7 @@ import re, subprocess, sys
 
 with open("pyproject.toml") as f:
     text = f.read()
+
 vm = re.search(r'^version\s*=\s*"([^"]*)"', text, re.MULTILINE)
 if not vm:
     sys.exit("version= line not found in pyproject.toml")
@@ -45,8 +46,21 @@ ns = [int(re.search(r"rc\.(\d+)$", t).group(1)) for t in tags if re.search(r"rc\
 n = max(ns) + 1 if ns else 1
 new = f"{xyz}-rc.{n}"
 
+nm = re.search(r'^name\s*=\s*"([^"]*)"', text, re.MULTILINE)
+if not nm:
+    sys.exit("name= line not found in pyproject.toml")
+package_name = nm.group(1)
+
+remote = subprocess.check_output(["git", "remote", "get-url", "origin"]).decode().strip()
+rm = re.search(r'github\.com[:/](.+?)(?:\.git)?$', remote)
+if not rm:
+    sys.exit(f"could not parse GitHub repo from remote: {remote!r}")
+github_repo = rm.group(1)
+
 print(f"version: {current} → {new}", file=sys.stderr)
 print(f"RC_VERSION={new}")
+print(f"PACKAGE_NAME={package_name}")
+print(f"GITHUB_REPO={github_repo}")
 PY
 )"
 
@@ -55,23 +69,21 @@ trap 'git worktree remove --force "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
 git worktree add --detach "$TMP" HEAD
 
-pdm run python - "$RC_VERSION" "$TMP/pyproject.toml" "$TMP/README.md" <<'PY'
+pdm run python - "$RC_VERSION" "$PACKAGE_NAME" "$GITHUB_REPO" "$TMP/pyproject.toml" "$TMP/README.md" <<'PY'
 import re, sys
-new, toml_path, readme_path = sys.argv[1], sys.argv[2], sys.argv[3]
+new, package_name, github_repo, toml_path, readme_path = sys.argv[1:6]
 
 with open(toml_path) as f:
     text = f.read()
 updated = re.sub(r'^(version\s*=\s*")[^"]*(")', rf'\g<1>{new}\2', text, flags=re.MULTILINE)
 assert updated != text, "version= line not found in pyproject.toml"
-# Set Source URL to the rc tag that the publish workflow will create.
-source_url = f"https://github.com/mckelvie-org/pdm-bin-dir/tree/v{new}"
+source_url = f"https://github.com/{github_repo}/tree/v{new}"
 updated = re.sub(r'^(Source\s*=\s*")[^"]*(")', rf'\g<1>{source_url}\2', updated, flags=re.MULTILINE)
 with open(toml_path, "w") as f:
     f.write(updated)
 
-# Normalize rc version for PyPI/shields (1.0.6-rc.2 → 1.0.6rc2).
 pypi_ver = re.sub(r"-rc\.", "rc", new)
-pypi_url = f"https://test.pypi.org/project/pdm-bin-dir/{pypi_ver}/"
+pypi_url = f"https://test.pypi.org/project/{package_name}/{pypi_ver}/"
 badge_url = f"https://img.shields.io/badge/pypi-v{pypi_ver}-blue.svg"
 python_badge = "https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue.svg"
 ci_badge = "https://img.shields.io/badge/CI-passing-brightgreen.svg"
@@ -80,9 +92,9 @@ with open(readme_path) as f:
 readme = re.sub(r'\[!\[PyPI version\]\([^)]*\)\]\([^)]*\)',
                 f'[![PyPI version]({badge_url})]({pypi_url})', readme)
 readme = re.sub(r'\[!\[Python versions\]\([^)]*\)\]\([^)]*\)',
-                f'[![Python versions]({python_badge})](https://pypi.org/project/pdm-bin-dir/)', readme)
+                f'[![Python versions]({python_badge})](https://pypi.org/project/{package_name}/)', readme)
 readme = re.sub(r'\[!\[CI\]\([^)]*\)\]\([^)]*\)',
-                f'[![CI]({ci_badge})](https://github.com/mckelvie-org/pdm-bin-dir/actions/workflows/ci.yml)', readme)
+                f'[![CI]({ci_badge})](https://github.com/{github_repo}/actions/workflows/ci.yml)', readme)
 with open(readme_path, "w") as f:
     f.write(readme)
 PY
