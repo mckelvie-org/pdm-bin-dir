@@ -1,26 +1,49 @@
 #!/usr/bin/env bash
-# Promote origin/rc to prod.
-# Reads the rc version from origin/rc, strips the rc qualifier, commits,
-# and pushes to prod — triggering publish.yml.
+# Promote an rc commit to prod.
+# Strips the rc qualifier from pyproject.toml, commits, and pushes —
+# triggering publish.yml.
 # Uses a git worktree so the dev's working directory is never modified.
+#
+# Usage: cut-prod [RC_REF]
+#   RC_REF  git ref to promote (tag, sha, branch). Bare version like
+#           "1.0.5-rc.1" is treated as tag "v1.0.5-rc.1".
+#           Defaults to HEAD if pyproject.toml has an X.Y.Z-rc.N version,
+#           otherwise origin/rc.
 set -euo pipefail
-
-if [[ "$(git branch --show-current)" != "main" ]]; then
-    echo "error: cut-prod must be run on main" >&2
-    exit 1
-fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "error: working tree has uncommitted changes — commit or stash first" >&2
     exit 1
 fi
 
-git fetch origin rc
+# Resolve the RC ref to use as the worktree base.
+if [[ $# -gt 0 ]]; then
+    RC_REF="$1"
+    # Bare version string → tag name
+    if [[ "$RC_REF" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+        RC_REF="v${RC_REF}"
+    fi
+    git fetch --tags origin
+else
+    CURRENT_VERSION=$(python3 -c "
+import re
+with open('pyproject.toml') as f:
+    text = f.read()
+m = re.search(r'^version\s*=\s*\"([^\"]*-rc\.[0-9]+)\"', text, re.MULTILINE)
+print(m.group(1) if m else '')
+")
+    if [[ -n "$CURRENT_VERSION" ]]; then
+        RC_REF="HEAD"
+    else
+        git fetch origin rc
+        RC_REF="origin/rc"
+    fi
+fi
 
 TMP=$(mktemp -d)
 trap 'git worktree remove --force "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
-git worktree add --detach "$TMP" origin/rc
+git worktree add --detach "$TMP" "$RC_REF"
 
 eval "$(pdm run python - "$TMP/pyproject.toml" <<'PY'
 import re, sys
@@ -34,7 +57,7 @@ current = vm.group(1)
 
 m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)-rc\.(\d+)", current)
 if not m:
-    sys.exit(f"expected X.Y.Z-rc.N in origin/rc pyproject.toml, got: {current!r}")
+    sys.exit(f"expected X.Y.Z-rc.N in pyproject.toml at {sys.argv[1]!r}, got: {current!r}")
 
 new = f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
 
