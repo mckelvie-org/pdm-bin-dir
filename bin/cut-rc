@@ -62,6 +62,9 @@ with open(path) as f:
     text = f.read()
 updated = re.sub(r'^(version\s*=\s*")[^"]*(")', rf'\g<1>{new}\2', text, flags=re.MULTILINE)
 assert updated != text, "version= line not found in pyproject.toml"
+# Set Source URL to the rc tag that the publish workflow will create.
+source_url = f"https://github.com/mckelvie-org/pdm-bin-dir/tree/v{new}"
+updated = re.sub(r'^(Source\s*=\s*")[^"]*(")', rf'\g<1>{source_url}\2', updated, flags=re.MULTILINE)
 with open(path, "w") as f:
     f.write(updated)
 PY
