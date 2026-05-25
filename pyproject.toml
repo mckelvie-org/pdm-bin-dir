@@ -7,7 +7,8 @@ name = "pdm-bin-dir"
 version = "1.0.8-dev.1"
 description = "PDM plugin that allows additional directories listed in pyproject.toml to be added to environment PATH"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
   { name = "Sam McKelvie", email = "dev@emckelvie.org" },
